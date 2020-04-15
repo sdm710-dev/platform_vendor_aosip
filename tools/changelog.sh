@@ -45,7 +45,16 @@ else
 fi
 
 # Build a list of all repos
+IFS='
+'
 PROJECTPATHS=$(grep "<project" "${MANIFEST}" | sed -n 's/.*path="\([^"]\+\)".*/\1/p')
+PROJECTPATHS+='
+'
+
+# Add repos in local manifest for DT changelog
+for lManifest in $TOP/.repo/local_manifests/*; do
+	PROJECTPATHS+=$(grep "<project" "${lManifest}" | sed -n 's/.*path="\([^"]\+\)".*/\1/p')
+done
 
 echo -e "${GREEN}Generating changelog...${NC}"
 
@@ -67,7 +76,11 @@ k=$(expr $i - 1)
 	# Cycle through every repo to find commits between 2 dates
 	for PROJECTPATH in ${PROJECTPATHS}; do
 		cd "${TOP}/${PROJECTPATH}"
-		git log --oneline --after=$After_Date --until=$Until_Date >> $pDIR/$Changelog
+		if ! [[ -z $(git log --after=$After_Date --until=$Until_Date) ]]; then # only echo if there is a change
+			echo "[${PROJECTPATH}]" >> $pDIR/$Changelog
+			git log --format="%s <%ar> [%h]%nby: %an (%ae)" --after=$After_Date --until=$Until_Date >> $pDIR/$Changelog
+			echo >> $pDIR/$Changelog
+		fi
 	done
 	cd $pDIR
 	echo >> $Changelog;
